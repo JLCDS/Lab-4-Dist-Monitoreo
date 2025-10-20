@@ -3,6 +3,7 @@ from prometheus_client import Counter, Histogram, generate_latest
 import time
 import os
 import pymysql
+import socket
 
 app = Flask(__name__)
 
@@ -179,6 +180,16 @@ def error():
 @app.route('/metrics')
 def metrics():
     return Response(generate_latest(), mimetype="text/plain")
+
+
+@app.route('/whoami')
+def whoami():
+    """Devuelve el hostname del contenedor para verificar qué réplica respondió."""
+    try:
+        host = socket.gethostname()
+    except Exception:
+        host = 'unknown'
+    return jsonify({'whoami': host}), 200
 
 
 if __name__ == '__main__':

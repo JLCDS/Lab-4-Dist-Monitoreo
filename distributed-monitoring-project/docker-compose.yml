@@ -1,21 +1,46 @@
 version: '3.8'
 
 services:
-  app:
+  app1:
     build: ./app
-    container_name: flask_app
-    ports:
-      - "5000:5000"
+    container_name: app1
     environment:
       - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=example
       - DB_NAME=books_db
-    networks:
-      - monitoring
     depends_on:
       - db
+    networks:
+      - monitoring
+
+  app2:
+    build: ./app
+    container_name: app2
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=example
+      - DB_NAME=books_db
+    depends_on:
+      - db
+    networks:
+      - monitoring
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx_lb
+    ports:
+      - "5000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app1
+      - app2
+    networks:
+      - monitoring
 
   prometheus:
     image: prom/prometheus
@@ -43,6 +68,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:               
       - monitoring
+
   db:
     image: mysql:8.0
     container_name: mysql_db
@@ -55,6 +81,7 @@ services:
       - "3307:3306"
     networks:
       - monitoring
+
 volumes:
   grafana_data:
 

@@ -86,6 +86,47 @@ curl http://localhost:5000/heavy
 curl http://localhost:5000/error
 ```
 
+## Balanceador de carga (Nginx)
+
+Este proyecto incluye un balanceador de carga simple basado en Nginx que distribuye el tráfico entre dos réplicas de la aplicación (`app1` y `app2`). Se expone en el host por el puerto 5000 y hace proxy a las aplicaciones internas en su puerto 5000.
+
+Puntos importantes:
+- El balanceador escucha en: http://localhost:5000
+- Réplicas internas: `app1:5000` y `app2:5000` (no están mapeadas al host)
+- Base de datos compartida: el contenedor `db` (MySQL) es accesible por ambas réplicas. En el host está mapeado en el puerto 3307 (host -> container 3306).
+
+Comandos para probar el balanceador
+
+PowerShell (repetir varias veces para ver distribución round-robin):
+```powershell
+# Ver la réplica que atendió (whoami)
+Invoke-WebRequest -UseBasicParsing -Uri http://localhost:5000/whoami | Select-Object -ExpandProperty Content
+
+# Crear un libro a través del balanceador
+$body = @{ title = 'Mi libro'; author = 'Yo' } | ConvertTo-Json
+Invoke-RestMethod -Uri http://localhost:5000/books -Method Post -Body $body -ContentType 'application/json'
+
+# Listar libros
+Invoke-WebRequest -UseBasicParsing -Uri http://localhost:5000/books | Select-Object -ExpandProperty Content
+```
+
+curl (Linux/macOS / Git Bash):
+```bash
+# whoami (ver qué réplica atiende)
+curl -sS http://localhost:5000/whoami
+
+# crear libro
+curl -sS -X POST -H "Content-Type: application/json" -d '{"title":"Mi libro","author":"Yo"}' http://localhost:5000/books
+
+# listar libros
+curl -sS http://localhost:5000/books
+```
+
+Notas de comportamiento y recomendaciones
+- Nginx por defecto usa round-robin para distribuir tráfico. En pruebas rápidas la conexión TCP puede reutilizarse y parecer que una sola réplica atiende muchas peticiones; hemos añadido en la configuración actual cabeceras para cerrar la conexión upstream por petición y hacer la distribución más visible en pruebas.
+- Prometheus scrapea actualmente ambas réplicas individualmente y también el endpoint del balanceador. Ajusta `monitoring/prometheus.yml` si quieres solo métricas agregadas a nivel de Nginx.
+
+
 ## Notas
 
 - Si cambias `requirements.txt`, reconstruye la imagen:
