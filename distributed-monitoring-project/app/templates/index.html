@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Biblioteca - Flask + Prometheus</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script>
+        function fmtSeconds(s){ return (s*1000).toFixed(0) + ' ms' }
+    </script>
+</head>
+<body class="app">
+    <header class="header">
+        <h1>Biblioteca</h1>
+        <p class="subtitle">Ejemplo con Flask, MySQL y métricas Prometheus</p>
+    </header>
+
+    <main class="container">
+        <section class="panel form-panel" aria-labelledby="searchHeading">
+            <h2 id="searchHeading">Buscar / Filtrar</h2>
+            <div class="row">
+                <label for="q" class="sr-only">Buscar</label>
+                <input id="q" placeholder="Buscar por título o autor" />
+                <button class="btn" id="searchBtn" onclick="searchBooks()">Buscar</button>
+                <button type="button" class="btn secondary" onclick="loadBooks();return false;">Refrescar</button>
+            </div>
+            <h2>Agregar libro</h2>
+            <div class="row">
+                <label for="title" class="sr-only">Título</label>
+                <input id="title" placeholder="Título" />
+                <label for="author" class="sr-only">Autor</label>
+                <input id="author" placeholder="Autor" />
+                <button class="btn" onclick="createBook()">Crear</button>
+            </div>
+        </section>
+
+        <section class="panel table-panel" aria-labelledby="listHeading">
+            <h2 id="listHeading">Lista de libros</h2>
+            <div class="table-wrapper">
+                <table id="booksTable" aria-describedby="emptyMessage">
+                    <thead><tr><th>ID</th><th>Título</th><th>Autor</th><th>Acciones</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div id="emptyMessage" class="empty" style="display:none">No hay libros. Usa el formulario para agregar uno.</div>
+            </div>
+        </section>
+
+        <section class="panel actions-panel" aria-labelledby="loadHeading">
+            <h2 id="loadHeading">Generar cargas (para monitoreo)</h2>
+            <div class="row">
+                <button class="btn" onclick="callHeavy()">Solicitud pesada (/heavy)</button>
+                <button class="btn danger" onclick="callError()">Forzar error (/error)</button>
+            </div>
+            <h3>Métricas rápidas</h3>
+            <div class="metrics">
+                <div>Última petición: <strong><span id="lastReq">—</span></strong></div>
+                <div>Estado API: <button class="btn small" onclick="checkApi()">Comprobar</button> <strong><span id="apiStatus">—</span></strong></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        async function loadBooks(){
+            const res = await fetch('/books');
+            const data = await res.json();
+            const tbody = document.querySelector('#booksTable tbody');
+            tbody.innerHTML = '';
+                const tbodyEl = document.querySelector('#booksTable tbody');
+                const emptyMsg = document.getElementById('emptyMessage');
+                tbodyEl.innerHTML = '';
+                if(!data || data.length === 0){
+                    emptyMsg.style.display = 'block';
+                } else {
+                    emptyMsg.style.display = 'none';
+                    data.forEach(b => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${b.id}</td><td>${escapeHtml(b.title)}</td><td>${escapeHtml(b.author)}</td><td><button class=\"btn small danger\" onclick=\"deleteBook(${b.id})\">Eliminar</button></td>`;
+                        tbodyEl.appendChild(tr);
+                    });
+                }
+                document.getElementById('lastReq').textContent = new Date().toLocaleTimeString();
+        }
+
+        async function createBook(){
+            const title = document.getElementById('title').value;
+            const author = document.getElementById('author').value;
+            const btn = event?.target || document.querySelector('button[onclick="createBook()"]');
+            try{
+                if(btn) btn.disabled = true;
+                const res = await fetch('/books', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title, author})});
+                if(res.status === 201){
+                    document.getElementById('title').value = '';
+                    document.getElementById('author').value = '';
+                    loadBooks();
+                } else {
+                    const err = await res.json().catch(()=>({error:'unknown'}));
+                    alert('Error: ' + JSON.stringify(err));
+                }
+            }catch(e){
+                alert('Network error: ' + e);
+            }finally{
+                if(btn) btn.disabled = false;
+            }
+        }
+
+        function escapeHtml(text){
+            if(!text) return '';
+            return text.replace(/[&<>"]+/g, function(c){
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+            });
+        }
+
+        async function deleteBook(id){
+            const res = await fetch(`/books/${id}`, {method:'DELETE'});
+            if(res.ok) loadBooks(); else alert('Error al eliminar');
+        }
+
+        async function searchBooks(){
+            const q = document.getElementById('q').value;
+            const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            const tbody = document.querySelector('#booksTable tbody');
+            tbody.innerHTML = '';
+            data.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${b.id}</td><td>${b.title}</td><td>${b.author}</td><td><button onclick="deleteBook(${b.id})">Eliminar</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function callHeavy(){
+            const t0 = performance.now();
+            const res = await fetch('/heavy');
+            const t1 = performance.now();
+            alert('Heavy done (status ' + res.status + ') in ' + Math.round(t1-t0) + ' ms');
+            loadBooks();
+        }
+
+        async function callError(){
+            const res = await fetch('/error');
+            alert('Error endpoint status: ' + res.status);
+        }
+
+        async function checkApi(){
+            const res = await fetch('/api');
+            document.getElementById('apiStatus').textContent = res.status;
+        }
+
+        window.onload = loadBooks;
+    </script>
+</body>
+</html>
