@@ -43,6 +43,19 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:               
       - monitoring
+<<<<<<< Updated upstream
+=======
+
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring
+
+>>>>>>> Stashed changes
   db:
     image: mysql:8.0
     container_name: mysql_db
@@ -51,10 +64,40 @@ services:
       - MYSQL_DATABASE=books_db
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/init-privileges.sql:/docker-entrypoint-initdb.d/init-privileges.sql:ro
     ports:
       - "3307:3306"
     networks:
       - monitoring
+<<<<<<< Updated upstream
+=======
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pomj123"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: mysqld-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=exporter:omj123@tcp(db:3306)/
+    command:
+      - '--web.listen-address=:9104'
+      - '--collect.global_status'
+      - '--collect.info_schema.tables'
+      - '--collect.info_schema.innodb_metrics'
+      - '--collect.global_variables'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+>>>>>>> Stashed changes
 volumes:
   grafana_data:
 

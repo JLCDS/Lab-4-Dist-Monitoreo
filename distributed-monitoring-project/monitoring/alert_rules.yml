@@ -1,0 +1,70 @@
+<<<<<<< Updated upstream
+=======
+groups:
+  - name: flask_alerts
+    rules:
+      - alert: HighRequestLatency
+        expr: app_request_latency_seconds_bucket{le="1.0"} > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alta latencia en las peticiones"
+          description: "Las peticiones están tomando más de 1 segundo en completarse"
+
+      - alert: HighErrorRate
+        expr: rate(app_request_total{endpoint="/error"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alta tasa de errores"
+          description: "Se están produciendo demasiados errores en la aplicación"
+
+      - alert: ServiceDown
+        expr: up{job="flask_app"} == 0
+        for: 1s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio caído"
+          description: "Una instancia de la aplicación Flask no está respondiendo"
+
+  - name: mysql_alerts
+    rules:
+      - alert: MySQLDown
+        expr: mysql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MySQL está caído"
+          description: "El servicio de MySQL no responde por más de 1 minuto."
+
+      - alert: MySQLHighThreadsRunning
+        expr: mysql_global_status_threads_running > 20
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto número de hilos en ejecución"
+          description: "MySQL tiene más de 20 hilos ejecutándose por más de 2 minutos."
+
+      - alert: MySQLSlowQueries
+        expr: rate(mysql_global_status_slow_queries[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consultas lentas detectadas"
+          description: "Se han detectado consultas lentas en MySQL en los últimos 5 minutos."
+
+      - alert: MySQLHighConnections
+        expr: mysql_global_status_threads_connected > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto número de conexiones"
+          description: "MySQL tiene más de 100 conexiones activas."
+>>>>>>> Stashed changes
