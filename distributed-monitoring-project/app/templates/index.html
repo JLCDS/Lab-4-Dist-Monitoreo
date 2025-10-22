@@ -46,15 +46,25 @@
         </section>
 
         <section class="panel actions-panel" aria-labelledby="loadHeading">
-            <h2 id="loadHeading">Generar cargas (para monitoreo)</h2>
+            <h2 id="loadHeading">Simulación de Alertas</h2>
+            <div class="row">
+                <button class="btn" onclick="simulateHighLatency()">Simular Alta Latencia</button>
+                <button class="btn danger" onclick="simulateErrors()">Simular Errores</button>
+                <button class="btn" onclick="simulateServiceDown()">Simular Caída</button>
+            </div>
+
+            <h3>Pruebas de Carga</h3>
             <div class="row">
                 <button class="btn" onclick="callHeavy()">Solicitud pesada (/heavy)</button>
                 <button class="btn danger" onclick="callError()">Forzar error (/error)</button>
             </div>
-            <h3>Métricas rápidas</h3>
+
+            <h3>Estado de Simulación</h3>
             <div class="metrics">
                 <div>Última petición: <strong><span id="lastReq">—</span></strong></div>
                 <div>Estado API: <button class="btn small" onclick="checkApi()">Comprobar</button> <strong><span id="apiStatus">—</span></strong></div>
+                <div>Simulación activa: <strong><span id="simulationStatus">Ninguna</span></strong></div>
+                <div>Tiempo restante: <strong><span id="simulationTime">0s</span></strong></div>
             </div>
         </section>
     </main>
@@ -144,6 +154,92 @@
         async function checkApi(){
             const res = await fetch('/api');
             document.getElementById('apiStatus').textContent = res.status;
+        }
+
+        let simulationInterval = null;
+        let simulationEndTime = null;
+
+        async function simulateHighLatency() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                document.getElementById('simulationStatus').textContent = 'Detenido';
+                simulationInterval = null;
+                return;
+            }
+
+            document.getElementById('simulationStatus').textContent = 'Alta Latencia';
+            simulationEndTime = Date.now() + (60 * 1000); // 1 minuto
+
+            // Hacer llamadas a /heavy cada segundo durante 1 minuto
+            simulationInterval = setInterval(async () => {
+                if (Date.now() >= simulationEndTime) {
+                    clearInterval(simulationInterval);
+                    document.getElementById('simulationStatus').textContent = 'Detenido';
+                    simulationInterval = null;
+                    return;
+                }
+
+                try {
+                    await fetch('/heavy');
+                    document.getElementById('simulationTime').textContent = 
+                        Math.round((simulationEndTime - Date.now()) / 1000) + 's';
+                } catch (e) {
+                    console.error('Error en simulación:', e);
+                }
+            }, 1000);
+        }
+
+        async function simulateErrors() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                document.getElementById('simulationStatus').textContent = 'Detenido';
+                simulationInterval = null;
+                return;
+            }
+
+            document.getElementById('simulationStatus').textContent = 'Generando Errores';
+            simulationEndTime = Date.now() + (120 * 1000); // 2 minutos
+
+            // Hacer llamadas a /error cada 2 segundos durante 2 minutos
+            simulationInterval = setInterval(async () => {
+                if (Date.now() >= simulationEndTime) {
+                    clearInterval(simulationInterval);
+                    document.getElementById('simulationStatus').textContent = 'Detenido';
+                    simulationInterval = null;
+                    return;
+                }
+
+                try {
+                    await fetch('/error');
+                    document.getElementById('simulationTime').textContent = 
+                        Math.round((simulationEndTime - Date.now()) / 1000) + 's';
+                } catch (e) {
+                    console.error('Error en simulación:', e);
+                }
+            }, 2000);
+        }
+
+        async function simulateServiceDown() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                document.getElementById('simulationStatus').textContent = 'Detenido';
+                simulationInterval = null;
+                return;
+            }
+
+            document.getElementById('simulationStatus').textContent = 'Simulando Caída';
+            
+            try {
+                const res = await fetch('/simulate/down', { method: 'POST' });
+                if (res.ok) {
+                    document.getElementById('simulationStatus').textContent = 'Servicio Detenido';
+                } else {
+                    document.getElementById('simulationStatus').textContent = 'Error al Simular';
+                }
+            } catch (e) {
+                console.error('Error al simular caída:', e);
+                document.getElementById('simulationStatus').textContent = 'Error';
+            }
         }
 
         window.onload = loadBooks;

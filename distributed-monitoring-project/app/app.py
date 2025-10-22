@@ -1,5 +1,7 @@
 from flask import Flask, jsonify, request, Response, render_template
 from prometheus_client import Counter, Histogram, generate_latest
+import random
+import signal
 import time
 import os
 import pymysql
@@ -68,8 +70,24 @@ def home_page():
 # ───── RUTAS DE API ─────
 @app.route('/api')
 def api_home():
+    global service_down, high_latency, error_rate
+    
+    # Simular caída del servicio
+    if service_down:
+        return '', 503
+    
     start_time = time.time()
     REQUEST_COUNT.labels(method=request.method, endpoint='/api').inc()
+    
+    # Simular tasa de error
+    if random.random() < error_rate:
+        REQUEST_LATENCY.labels(endpoint='/api').observe(time.time() - start_time)
+        return jsonify({"error": "Internal Server Error"}), 500
+    
+    # Simular latencia alta
+    if high_latency:
+        time.sleep(random.uniform(2, 5))
+    
     response = jsonify({"message": "API funcionando correctamente"})
     REQUEST_LATENCY.labels(endpoint='/api').observe(time.time() - start_time)
     return response, 200
@@ -157,10 +175,15 @@ def heavy():
     # Simula una operación pesada para generar latencia
     start_time = time.time()
     REQUEST_COUNT.labels(method=request.method, endpoint='/heavy').inc()
-    # hacer cálculos intensivos (CPU bound) o sleep para I/O
+    
+    # Hacer el proceso más pesado para generar más latencia
     total = 0
-    for i in range(1, 2000000):
-        total += i % 7
+    for i in range(1, 3000000):  # Aumentado para generar más latencia
+        total += (i % 7) * (i % 13)  # Operación más costosa
+    
+    # Agregar un sleep aleatorio para simular I/O
+    time.sleep(random.uniform(0.1, 0.5))
+    
     REQUEST_LATENCY.labels(endpoint='/heavy').observe(time.time() - start_time)
     return jsonify({'status': 'done', 'work': total}), 200
 
@@ -190,6 +213,39 @@ def whoami():
     except Exception:
         host = 'unknown'
     return jsonify({'whoami': host}), 200
+
+# Variables globales para simulación
+service_down = False
+high_latency = False
+error_rate = 0
+
+@app.route('/simulate/service-down', methods=['POST'])
+def simulate_service_down():
+    """Simula una caída del servicio activando/desactivando el flag."""
+    global service_down
+    data = request.get_json(force=True)
+    service_down = data.get('enabled', False)
+    if service_down:
+        return jsonify({'status': 'Service down simulation enabled'}), 200
+    return jsonify({'status': 'Service down simulation disabled'}), 200
+
+@app.route('/simulate/high-latency', methods=['POST'])
+def simulate_high_latency():
+    """Simula latencia alta activando/desactivando el flag."""
+    global high_latency
+    data = request.get_json(force=True)
+    high_latency = data.get('enabled', False)
+    if high_latency:
+        return jsonify({'status': 'High latency simulation enabled'}), 200
+    return jsonify({'status': 'High latency simulation disabled'}), 200
+
+@app.route('/simulate/error-rate', methods=['POST'])
+def simulate_error_rate():
+    """Simula una tasa de error específica."""
+    global error_rate
+    data = request.get_json(force=True)
+    error_rate = float(data.get('rate', 0))  # rate debe ser entre 0 y 1
+    return jsonify({'status': f'Error rate set to {error_rate}'}), 200
 
 
 if __name__ == '__main__':

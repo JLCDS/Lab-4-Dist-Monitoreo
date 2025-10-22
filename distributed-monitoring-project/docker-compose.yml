@@ -8,7 +8,7 @@ services:
       - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=example
+      - DB_PASSWORD=omj123
       - DB_NAME=books_db
     depends_on:
       - db
@@ -22,7 +22,7 @@ services:
       - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=example
+      - DB_PASSWORD=omj123
       - DB_NAME=books_db
     depends_on:
       - db
@@ -47,10 +47,25 @@ services:
     container_name: prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     ports:
       - "9090:9090"
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    ports:
+      - "9093:9093"
+    environment:
+      - SMTP_PASSWORD=alertomj123
     networks:
       - monitoring
 
@@ -73,7 +88,7 @@ services:
     image: mysql:8.0
     container_name: mysql_db
     environment:
-      - MYSQL_ROOT_PASSWORD=example
+      - MYSQL_ROOT_PASSWORD=omj123
       - MYSQL_DATABASE=books_db
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro

@@ -1,0 +1,29 @@
+groups:
+  - name: flask_alerts
+    rules:
+      - alert: HighRequestLatency
+        expr: app_request_latency_seconds_bucket{le="1.0"} > 0.5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alta latencia en las peticiones"
+          description: "Las peticiones están tomando más de 1 segundo en completarse"
+
+      - alert: HighErrorRate
+        expr: rate(app_request_total{endpoint="/error"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Alta tasa de errores"
+          description: "Se están produciendo demasiados errores en la aplicación"
+
+      - alert: ServiceDown
+        expr: up{job="flask_app"} == 0
+        for: 1s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio caído"
+          description: "Una instancia de la aplicación Flask no está respondiendo"
